@@ -7,7 +7,7 @@ channels:
 - conda-forge
 - bioconda
 dependencies:
-- bzip2=1.0.6=h9a117a8_4
+- bzip2=1.0.6
 - pandas=0.20.3=py27_0
 - numpy=1.12.1=py27_0
 - matplotlib=2.0.2=py27_2

@@ -1,4 +1,4 @@
-UDiTaS v0.4
+UDiTaS v1.0
 ===========
 
 Overview
@@ -7,8 +7,7 @@ Overview
 UDiTaS(TM) stands for UniDirectional Targeted Sequencing, a novel sequencing method useful for measuring small indels as well as
 structural rearrangements, like translocations, in a single reaction.
 
-See details of the method in Giannoukos et al. BMC Genomics (2018) 19:212
-https://doi.org/10.1186/s12864-018-4561-9
+See details of the method in Giannoukos et al. BMC Genomics (2018) 19:212, https://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-018-4561-9
 
 
 Systems Requirements
@@ -22,7 +21,7 @@ The code requires setting up two environmental variables
 
 `GENOMES_2BIT` contains the location of the 2bit files for the genomes used in the analysis, eg hg38.2bit
 
-To test the code create a virtual python enviroment with
+To test the code create a virtual python environment with
 
 `conda env create -f uditas_env.yml`
 
@@ -30,7 +29,7 @@ then activate using
 
 `source activate uditas_env`
 
-To install udtas as an executable run
+To install uditas as an executable run
 
 `python setup.py install`
 
