@@ -8,14 +8,13 @@ from __future__ import print_function
 
 import pandas as pd
 
-import uditas_helpers
+from . import uditas_helpers
 
 import argparse
 
 import os
 
-
-from _version import __version__
+from ._version import __version__
 
 # Metadata
 __author__ = "Eugenio Marco"
@@ -105,8 +104,7 @@ def main():
         if skip_trimming == 0:
             uditas_helpers.trim_fastq(dir_sample, amplicon_info, process_AMP_seq_run)
         # We check that we have plasmid_sequence
-        has_plasmid = (type(amplicon_info['plasmid_sequence']) is str or
-                       type(amplicon_info['plasmid_sequence']) is unicode)
+        has_plasmid = type(amplicon_info['plasmid_sequence']) is str
         do_plasmid = check_plasmid_insertions == 1 and has_plasmid
         # Align to plasmid if necessary
         if (do_plasmid and not skip_plasmid_alignment):
@@ -153,8 +151,7 @@ def main():
         # assembly, useful in cases of transgenic mice, where the target region and primers are human (assembly), but
         # the genomic background is different (genomic_background). This is used if the field genomic_background is
         # present in sample_info.csv
-        has_genomic_background = (type(amplicon_info['genomic_background']) is str or
-                                  type(amplicon_info['genomic_background']) is unicode)
+        has_genomic_background = type(amplicon_info['genomic_background']) is str
 
         if has_genomic_background:
             genomic_background = amplicon_info['genomic_background']

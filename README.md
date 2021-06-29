@@ -1,4 +1,4 @@
-UDiTaS v1.0
+UDiTaS v1.1
 ===========
 
 Overview
@@ -13,7 +13,7 @@ See details of the method in Giannoukos et al. BMC Genomics (2018) 19:212, https
 Systems Requirements
 --------------------
 
-UDiTaS has been tested in python 2.7.13 and requires the python packages and tools listed in the file uditas_env.yml
+UDiTaS has been tested in python 3.9 and requires the python packages and tools listed in the file uditas_env.yml
 
 The code requires setting up two environmental variables
 
@@ -45,7 +45,7 @@ data/fig2b
 data/fig2c
 ```
 
-These data are a subsample of the data displayed in Fig 2 of the paper.
+These data are subsamples of the data displayed in Fig 2 of the paper.
 
 Usage
 -----

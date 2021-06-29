@@ -2,55 +2,29 @@
 """
     Function definitions to process UDiTaS data
 """
-
-# imports here
-
-from __future__ import print_function
-
-from _version import __version__
-
 import matplotlib
-
 matplotlib.use('Agg')
-
 import matplotlib.pyplot as plt
-
 import pylab
-
 import pandas as pd
-
 import numpy as np
-
 import os
-
 import sys
-
 import gzip
-
-import itertools
-
+import shutil
 import operator
-
 import subprocess
-
 import twobitreader
-
 from Bio.Alphabet import IUPAC
-
 from Bio import SeqIO
-
 from Bio.Seq import Seq
-
 from Bio.SeqRecord import SeqRecord
-
 import pysam
-
-
 
 # Metadata
 __author__ = "Eugenio Marco"
 __credits__ = ["David Kelly"]
-__status__ = "Development"
+__status__ = "Production"
 
 
 class Error(Exception):
@@ -104,7 +78,7 @@ def open_fastq_or_gz(filename):
 def hamm_dist(str1, str2):
     assert len(str1) == len(str2)
     ne = operator.ne
-    return sum(itertools.imap(ne, str1, str2))
+    return sum(map(ne, str1, str2))
 
 
 ################################################################################
@@ -129,8 +103,7 @@ def select_barcode(seq, barcode_list, n_max_mismatches=1):
 # Mask sequence by quality score
 ################################################################################
 def mask(seq, qual, min_qual=12):
-
-    return "".join((b if (ord(q) - 33) >= min_qual else "N") for b, q in itertools.izip(seq, qual))
+    return "".join((b if (ord(q) - 33) >= min_qual else "N") for b, q in zip(seq, qual))
 
 
 ################################################################################
@@ -145,19 +118,15 @@ def reverse_complement(seq):
 # Create umi dict
 ################################################################################
 def create_umi_dict(filename):
-
-    umi_file = open_fastq_or_gz(filename)
-
     umi_dict = dict()
 
-    umi_reads = itertools.izip(umi_file)
-
-    for header_umi in umi_reads:
-
-        seq_umi = umi_reads.next()
-        umi_reads.next()
-        qual_umi = umi_reads.next()
-        umi_dict[header_umi[0].split()[0][1:]] = [seq_umi[0].rstrip(), qual_umi[0].rstrip()]
+    with open_fastq_or_gz(filename) as f:
+        for line in f:
+            header_umi = line.decode("utf-8")
+            seq_umi = f.readline().decode("utf-8")
+            f.readline()  # Skipping line
+            qual_umi = f.readline().decode("utf-8")
+            umi_dict[header_umi.split()[0][1:]] = [seq_umi.rstrip(), qual_umi.rstrip()]
 
     return umi_dict
 
@@ -218,9 +187,11 @@ def create_filename(dir_sample, N7, N5, filetype):
     elif filetype == 'unmapped_plasmid_R2fastq':
         return os.path.join(main_folder, 'plasmid_unmapped_fastq_files', N7 + '_' + N5 + '_plasmid_unmapped_R2.fastq')
     elif filetype == 'unmapped_plasmid_R1fastqgz':
-        return os.path.join(main_folder, 'plasmid_unmapped_fastq_files', N7 + '_' + N5 + '_plasmid_unmapped_R1.fastq.gz')
+        return os.path.join(main_folder, 'plasmid_unmapped_fastq_files',
+                            N7 + '_' + N5 + '_plasmid_unmapped_R1.fastq.gz')
     elif filetype == 'unmapped_plasmid_R2fastqgz':
-        return os.path.join(main_folder, 'plasmid_unmapped_fastq_files', N7 + '_' + N5 + '_plasmid_unmapped_R2.fastq.gz')
+        return os.path.join(main_folder, 'plasmid_unmapped_fastq_files',
+                            N7 + '_' + N5 + '_plasmid_unmapped_R2.fastq.gz')
     elif filetype == 'sam_amplicons':
         return os.path.join(main_folder, 'sam_amplicon_files', N7 + '_' + N5 + '.sam')
     elif filetype == 'sam_report_amplicons':
@@ -236,9 +207,11 @@ def create_filename(dir_sample, N7, N5, filetype):
     elif filetype == 'qsorted_unmapped_bam_amplicons':
         return os.path.join(main_folder, 'bam_amplicon_files', N7 + '_' + N5 + '_qsorted_amplicons_unmapped.bam')
     elif filetype == 'unmapped_amplicons_R1fastq':
-        return os.path.join(main_folder, 'amplicons_unmapped_fastq_files', N7 + '_' + N5 + '_amplicons_unmapped_R1.fastq')
+        return os.path.join(main_folder, 'amplicons_unmapped_fastq_files',
+                            N7 + '_' + N5 + '_amplicons_unmapped_R1.fastq')
     elif filetype == 'unmapped_amplicons_R2fastq':
-        return os.path.join(main_folder, 'amplicons_unmapped_fastq_files', N7 + '_' + N5 + '_amplicons_unmapped_R2.fastq')
+        return os.path.join(main_folder, 'amplicons_unmapped_fastq_files',
+                            N7 + '_' + N5 + '_amplicons_unmapped_R2.fastq')
     elif filetype == 'unmapped_amplicons_R1fastqgz':
         return os.path.join(main_folder, 'amplicons_unmapped_fastq_files',
                             N7 + '_' + N5 + '_amplicons_unmapped_R1.fastq.gz')
@@ -278,7 +251,6 @@ def create_filename(dir_sample, N7, N5, filetype):
 #
 # ##########################
 def demultiplex(dir_sample):
-
     # Read indices
     sample_info_filename = os.path.join(dir_sample, 'sample_info.csv')
 
@@ -308,7 +280,7 @@ def demultiplex(dir_sample):
     files_out = list()
 
     # Create all directories if necessary
-    N7_N5 = itertools.izip(index_i1_list, index_i2_list)
+    N7_N5 = zip(index_i1_list, index_i2_list)
     for (N7, N5) in N7_N5:
         exp_dir = create_filename(dir_sample, N7, N5, 'mainfolder')
         if not os.path.exists(exp_dir):
@@ -359,7 +331,8 @@ def demultiplex(dir_sample):
     file_read_counts = [0] * len(files_out)
 
     # We open r1,r2,i1,i2 files and distribute reads
-    with open_fastq_or_gz(r1_fastq) as r1_file, open_fastq_or_gz(r2_fastq) as r2_file, open_fastq_or_gz(i1_fastq) as i1_file, open_fastq_or_gz(i2_fastq) as i2_file:
+    with open_fastq_or_gz(r1_fastq) as r1_file, open_fastq_or_gz(r2_fastq) as r2_file, open_fastq_or_gz(
+            i1_fastq) as i1_file, open_fastq_or_gz(i2_fastq) as i2_file:
         # Add counters for all reads
 
         reads_in_experiment_list_count = 0
@@ -373,16 +346,19 @@ def demultiplex(dir_sample):
         mismatch_dict_i1 = dict()
         mismatch_dict_i2 = dict()
 
-        r1_r2_i1_i2 = itertools.izip(r1_file, r2_file, i1_file, i2_file)
+        r1_r2_i1_i2 = zip(r1_file, r2_file, i1_file, i2_file)
 
         for header_r1, header_r2, header_i1, header_i2 in r1_r2_i1_i2:
-    
-            seq_r1, seq_r2, seq_i1, seq_i2_plus_umi = r1_r2_i1_i2.next()
+            (header_r1, header_r2, header_i1, header_i2) = (header_r1.decode("utf-8"), header_r2.decode("utf-8"),
+                                                            header_i1.decode("utf-8"), header_i2.decode("utf-8"))
+            seq_r1, seq_r2, seq_i1, seq_i2_plus_umi = next(r1_r2_i1_i2)
+            (seq_r1, seq_r2, seq_i1, seq_i2_plus_umi) = (seq_r1.decode("utf-8"), seq_r2.decode("utf-8"),
+                                                         seq_i1.decode("utf-8"), seq_i2_plus_umi.decode("utf-8"))
+            next(r1_r2_i1_i2)
 
-            r1_r2_i1_i2.next()
-
-            qual_r1, qual_r2, qual_i1, qual_i2_plus_umi = r1_r2_i1_i2.next()
-
+            qual_r1, qual_r2, qual_i1, qual_i2_plus_umi = next(r1_r2_i1_i2)
+            (qual_r1, qual_r2, qual_i1, qual_i2_plus_umi) = (qual_r1.decode("utf-8"), qual_r2.decode("utf-8"),
+                                                             qual_i1.decode("utf-8"), qual_i2_plus_umi.decode("utf-8"))
             seq_i1, seq_i2_plus_umi = seq_i1.rstrip(), seq_i2_plus_umi.rstrip()
 
             qual_i1, qual_i2_plus_umi = qual_i1.rstrip(), qual_i2_plus_umi.rstrip()
@@ -541,8 +517,10 @@ def demultiplex(dir_sample):
 
     # gzip fastq files
     for fo in files_out:
-        with open(fo) as f_in, gzip.open(fo + '.gz', 'wb') as f_out:
-            f_out.writelines(f_in)
+        with open(fo) as f_in:
+            with gzip.open(fo + '.gz', 'wt') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+        os.remove(fo)
 
 
 ################################################
@@ -632,9 +610,9 @@ def write_amplicon(dir_sample, amplicon_info, amplicon_list):
 #
 ############################
 def get_reaction_type(amplicon_info):
-    has_guide1 = type(amplicon_info['chr_guide_1']) is str or type(amplicon_info['chr_guide_1']) is unicode
-    has_guide2 = type(amplicon_info['chr_guide_2']) is str or type(amplicon_info['chr_guide_2']) is unicode
-    has_guide3 = type(amplicon_info['chr_guide_3']) is str or type(amplicon_info['chr_guide_3']) is unicode
+    has_guide1 = type(amplicon_info['chr_guide_1']) is str
+    has_guide2 = type(amplicon_info['chr_guide_2']) is str
+    has_guide3 = type(amplicon_info['chr_guide_3']) is str
 
     if not has_guide1 and not has_guide2 and not has_guide3:
         reaction_type = 'control'
@@ -899,7 +877,6 @@ def create_amplicon(dir_sample, amplicon_info, file_genome_2bit, amplicon_window
 #
 # ##########################
 def trim_fastq(dir_sample, amplicon_info, process_AMP_seq_run):
-
     # UDiTaS adapters
     Nv2F = 'TCGTCGGCAGCGTCAGATGTGTATAAGAGACAG'
     SBS12 = 'GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT'
@@ -946,7 +923,6 @@ def trim_fastq(dir_sample, amplicon_info, process_AMP_seq_run):
 #
 # ##########################
 def align_plasmid_local(dir_sample, amplicon_info, ncpu=4):
-
     # We first check if the experiment had any guides
     N7 = amplicon_info['index_I1']
     N5 = amplicon_info['index_I2']
@@ -977,8 +953,8 @@ def align_plasmid_local(dir_sample, amplicon_info, ncpu=4):
 
     bowtie2_command = ['bowtie2', '--local', '-p', str(ncpu),
                        '-X', '5000', '-k', '2', '-x', 'plasmid',
-                             '-1', file_cutadapt_R1, '-2', file_cutadapt_R2,
-                             '-S', file_sam_plasmid_local]
+                       '-1', file_cutadapt_R1, '-2', file_cutadapt_R2,
+                       '-S', file_sam_plasmid_local]
 
     handle_sam_report_genome_local = open(file_sam_report_plasmid_local, 'wb')
 
@@ -1013,7 +989,6 @@ def align_plasmid_local(dir_sample, amplicon_info, ncpu=4):
 # Function to extract reads that did not align to the plasmid
 #################################################################################
 def extract_unmapped_reads_plasmid(dir_sample, amplicon_info):
-
     N7 = amplicon_info['index_I1']
     N5 = amplicon_info['index_I2']
 
@@ -1048,8 +1023,9 @@ def extract_unmapped_reads_plasmid(dir_sample, amplicon_info):
     subprocess.call(bamtofastq_command, stderr=handle_file_err)
 
     for fo in [file_R1_unmapped, file_R2_unmapped]:
-        with open(fo) as f_in, gzip.open(fo + '.gz', 'wb') as f_out:
-            f_out.writelines(f_in)
+        with open(fo) as f_in:
+            with gzip.open(fo + '.gz', 'wt') as f_out:
+                shutil.copyfileobj(f_in, f_out)
         os.remove(fo)
 
 
@@ -1062,8 +1038,8 @@ def analyze_alignments_plasmid(dir_sample, amplicon_info, min_MAPQ, file_genome_
 
     exp_dir = create_filename(dir_sample, N7, N5, 'mainfolder')
 
-    file_UMI = create_filename(dir_sample, N7, N5, 'umifastqgz')
-    UMI_dict = create_barcode_dict(file_UMI)
+    file_umi = create_filename(dir_sample, N7, N5, 'umifastqgz')
+    umi_dict = create_umi_dict(file_umi)
 
     results_folder = os.path.join(exp_dir, 'results')
     if not os.path.exists(results_folder):
@@ -1085,10 +1061,11 @@ def analyze_alignments_plasmid(dir_sample, amplicon_info, min_MAPQ, file_genome_
 
         if amplicon_info['strand'] == '+':  # This is the UDiTaS oligo strand
             seq_after_uditas_primer = genome[amplicon_info['chr']][amplicon_info['end']:(amplicon_info['end'] +
-                                                                                        length_to_test)]
+                                                                                         length_to_test)]
         elif amplicon_info['strand'] == '-':
             seq_after_uditas_primer = reverse_complement(genome[amplicon_info['chr']][(amplicon_info['start'] -
-                                                                                       length_to_test):amplicon_info['start']])
+                                                                                       length_to_test):amplicon_info[
+                                                                                          'start']])
         n_max_mismatches = 2  # We allow this number of mismatches between the read and the sequence after the primer
 
         names_list_plasmid_genome = []
@@ -1101,19 +1078,19 @@ def analyze_alignments_plasmid(dir_sample, amplicon_info, min_MAPQ, file_genome_
                 if read.is_read2:  # R2 is the UDiTaS primer
                     if read.is_reverse:
                         seq_test = reverse_complement(read.query_sequence)[uditas_primer_length:(uditas_primer_length +
-                                                                                            length_to_test)]
+                                                                                                 length_to_test)]
                     else:
                         seq_test = read.query_sequence[uditas_primer_length:(uditas_primer_length + length_to_test)]
 
                     # Sometimes, after cutadapt we have a read shorter than uditas_primer_length + length_to_test
                     # We skip those directly without calculating hamm_dist, which doesn't make sense
                     if (len(seq_test) == len(seq_after_uditas_primer.upper()) and
-                        hamm_dist(seq_test, seq_after_uditas_primer.upper()) <= n_max_mismatches):
+                            hamm_dist(seq_test, seq_after_uditas_primer.upper()) <= n_max_mismatches):
                         # Reads for which the R2 has genomic sequence after the UDiTaS primer
-                        UMI_list_plasmid_genome.append(UMI_dict[read.query_name][0])
+                        UMI_list_plasmid_genome.append(umi_dict[read.query_name][0])
                         names_list_plasmid_genome.append(read.query_name)
-                    else: # We put those short reads into the plasmid only bucket
-                        UMI_list_plasmid_only.append(UMI_dict[read.query_name][0])
+                    else:  # We put those short reads into the plasmid only bucket
+                        UMI_list_plasmid_only.append(umi_dict[read.query_name][0])
                         names_list_plasmid_only.append(read.query_name)
 
         total_reads_plasmid_genome = len(set(names_list_plasmid_genome))
@@ -1154,12 +1131,11 @@ def analyze_alignments_plasmid(dir_sample, amplicon_info, min_MAPQ, file_genome_
 #
 # ##########################
 def align_genome_local(dir_sample, amplicon_info, assembly, check_plasmid_insertions, ncpu=4):
-
     # We first check if the experiment had any guides
     N7 = amplicon_info['index_I1']
     N5 = amplicon_info['index_I2']
 
-    has_plasmid = type(amplicon_info['plasmid_sequence']) is str or type(amplicon_info['plasmid_sequence']) is unicode
+    has_plasmid = type(amplicon_info['plasmid_sequence']) is str
 
     if check_plasmid_insertions == 1 and has_plasmid:
         file_R1 = create_filename(dir_sample, N7, N5, 'unmapped_plasmid_R1fastqgz')
@@ -1186,8 +1162,8 @@ def align_genome_local(dir_sample, amplicon_info, assembly, check_plasmid_insert
 
     bowtie2_command = ['bowtie2', '--local', '-p', str(ncpu),
                        '-X', '5000', '-k', '2', '-x', assembly,
-                             '-1', file_R1, '-2', file_R2,
-                             '-S', file_sam_genome_local]
+                       '-1', file_R1, '-2', file_R2,
+                       '-S', file_sam_genome_local]
 
     handle_sam_report_genome_local = open(file_sam_report_genome_local, 'wb')
 
@@ -1227,12 +1203,11 @@ def align_genome_local(dir_sample, amplicon_info, assembly, check_plasmid_insert
 #
 # ##########################
 def align_amplicon(dir_sample, amplicon_info, check_plasmid_insertions, ncpu=4):
-
     # We first check if the experiment had any guides
     N7 = amplicon_info['index_I1']
     N5 = amplicon_info['index_I2']
 
-    has_plasmid = type(amplicon_info['plasmid_sequence']) is str or type(amplicon_info['plasmid_sequence']) is unicode
+    has_plasmid = type(amplicon_info['plasmid_sequence']) is str
 
     if check_plasmid_insertions == 1 and has_plasmid:
         file_R1 = create_filename(dir_sample, N7, N5, 'unmapped_plasmid_R1fastqgz')
@@ -1295,25 +1270,6 @@ def align_amplicon(dir_sample, amplicon_info, check_plasmid_insertions, ncpu=4):
     os.chdir(initial_dir)
 
 
-#################################################################################
-# Function to create barcode dict
-#################################################################################
-def create_barcode_dict(filename):
-    barcode_file = open_fastq_or_gz(filename)
-
-    barcode_dict = dict()
-
-    barcode_reads = itertools.izip(barcode_file)
-
-    for header_barcode in barcode_reads:
-        seq_barcode = barcode_reads.next()
-        barcode_reads.next()
-        qual_barcode = barcode_reads.next()
-        barcode_dict[header_barcode[0].split()[0][1:]] = [seq_barcode[0].rstrip(), qual_barcode[0].rstrip()]
-
-    return barcode_dict
-
-
 ################################################################################
 # parse_indels
 #
@@ -1364,7 +1320,7 @@ def get_intersection(region1_begin, region1_end, region2_begin, region2_end):
 #  bam_file:               alignments file to process
 #
 ################################################################################
-def find_indels(bam_file, strand, region_chr, region_start, region_end, UMI_dict, min_MAPQ, min_AS):
+def find_indels(bam_file, strand, region_chr, region_start, region_end, umi_dict, min_MAPQ, min_AS):
     bam_in_alignment_file = pysam.AlignmentFile(bam_file, 'rb')
 
     # We get the reads that overlap the window in which we make the counts
@@ -1383,9 +1339,9 @@ def find_indels(bam_file, strand, region_chr, region_start, region_end, UMI_dict
             read_AS = read.get_tag('AS')
         # We test first if the read is unmapped, otherwise read_AS would be undefined
         if not read.is_unmapped and (((read.reference_start < region_start) and
-                 (read.reference_end > region_end)) and
-                    read.mapping_quality >= min_MAPQ and
-                    read_AS >= min_AS and  not read.is_secondary):
+                                      (read.reference_end > region_end)) and
+                                     read.mapping_quality >= min_MAPQ and
+                                     read_AS >= min_AS and not read.is_secondary):
             read_indels = parse_indels(read)
             # if no indels found, write 0
             if len(read_indels) == 0:
@@ -1400,7 +1356,7 @@ def find_indels(bam_file, strand, region_chr, region_start, region_end, UMI_dict
                     position_list.append(int(pos))
 
                 indel_list.append(indel)
-                UMI_list.append(UMI_dict[read.query_name][0])
+                UMI_list.append(umi_dict[read.query_name][0])
 
     df = pd.DataFrame({'read_name': names_list,
                        'position': position_list,
@@ -1610,7 +1566,6 @@ def get_cut_in_reference_amplicon_df(amplicon_info, reaction_type, record, stran
 #  Function to analyze indels and structural rearrangements from aligned reads to amplicons
 ################################################################################
 def analyze_alignments(dir_sample, amplicon_info, window_size, amplicon_window_around_cut, min_MAPQ, min_AS):
-
     reaction_type = get_reaction_type(amplicon_info)
 
     # UDiTaS primer strand
@@ -1628,9 +1583,9 @@ def analyze_alignments(dir_sample, amplicon_info, window_size, amplicon_window_a
 
     file_sorted_bam_amplicons = create_filename(dir_sample, N7, N5, 'sorted_bam_amplicons')
 
-    file_UMI = create_filename(dir_sample, N7, N5, 'umifastqgz')
+    file_umi = create_filename(dir_sample, N7, N5, 'umifastqgz')
 
-    UMI_dict = create_barcode_dict(file_UMI)
+    umi_dict = create_umi_dict(file_umi)
 
     filename_amplicons_fa = os.path.join(exp_dir, 'amplicons', 'amplicons.fa')
 
@@ -1653,7 +1608,7 @@ def analyze_alignments(dir_sample, amplicon_info, window_size, amplicon_window_a
             region_start = cut_position - window_size
             region_end = cut_position + window_size + 1
 
-            results = find_indels(file_sorted_bam_amplicons, strand, region_chr, region_start, region_end, UMI_dict,
+            results = find_indels(file_sorted_bam_amplicons, strand, region_chr, region_start, region_end, umi_dict,
                                   min_MAPQ, min_AS)
             # This is to catch the control case, no cut there
             if len(cut) > 0:
@@ -1687,7 +1642,7 @@ def analyze_alignments_all_amplicons(dir_sample, amplicon_info, min_MAPQ, min_AS
     exp_dir = create_filename(dir_sample, N7, N5, 'mainfolder')
 
     file_UMI = create_filename(dir_sample, N7, N5, 'umifastqgz')
-    UMI_dict = create_barcode_dict(file_UMI)
+    umi_dict = create_umi_dict(file_UMI)
 
     results_folder = os.path.join(exp_dir, 'results')
     if not os.path.exists(results_folder):
@@ -1710,7 +1665,7 @@ def analyze_alignments_all_amplicons(dir_sample, amplicon_info, min_MAPQ, min_AS
         # We test first if the read is unmapped, otherwise read_AS would be undefined
         if not read.is_unmapped and read.mapping_quality >= min_MAPQ \
                 and read_AS >= min_AS and not read.is_secondary:
-            UMI_list_amplicons.append(UMI_dict[read.query_name][0])
+            UMI_list_amplicons.append(umi_dict[read.query_name][0])
             names_list_amplicons.append(read.query_name)
 
     all_amplicons_total_reads = len(set(names_list_amplicons))
@@ -1731,7 +1686,6 @@ def analyze_alignments_all_amplicons(dir_sample, amplicon_info, min_MAPQ, min_AS
 # Function to extract all unmapped reads to the amplicons
 ################################################################################
 def extract_unmapped_reads_amplicons(dir_sample, amplicon_info):
-
     N7 = amplicon_info['index_I1']
     N5 = amplicon_info['index_I2']
 
@@ -1765,8 +1719,9 @@ def extract_unmapped_reads_amplicons(dir_sample, amplicon_info):
     subprocess.call(bamtofastq_command, stderr=handle_unmapped_report)
 
     for fo in [file_R1_unmapped, file_R2_unmapped]:
-        with open(fo) as f_in, gzip.open(fo + '.gz', 'wb') as f_out:
-            f_out.writelines(f_in)
+        with open(fo) as f_in:
+            with gzip.open(fo + '.gz', 'wt') as f_out:
+                shutil.copyfileobj(f_in, f_out)
         os.remove(fo)
 
 
@@ -1782,7 +1737,6 @@ def extract_unmapped_reads_amplicons(dir_sample, amplicon_info):
 #
 # ##########################
 def align_genome_global(dir_sample, amplicon_info, assembly, ncpu=4):
-
     # We first check if the experiment had any guides
     N7 = amplicon_info['index_I1']
     N5 = amplicon_info['index_I2']
@@ -1842,7 +1796,7 @@ def align_genome_global(dir_sample, amplicon_info, assembly, ncpu=4):
 ################################################################################
 # Function to analyze global alignments to the genome
 ################################################################################
-def analyze_alignments_genome_global(dir_sample, amplicon_info, min_MAPQ, min_AS,  file_genome_2bit):
+def analyze_alignments_genome_global(dir_sample, amplicon_info, min_MAPQ, min_AS, file_genome_2bit):
     N7 = amplicon_info['index_I1']
     N5 = amplicon_info['index_I2']
 
@@ -1851,7 +1805,7 @@ def analyze_alignments_genome_global(dir_sample, amplicon_info, min_MAPQ, min_AS
     exp_dir = create_filename(dir_sample, N7, N5, 'mainfolder')
 
     file_UMI = create_filename(dir_sample, N7, N5, 'umifastqgz')
-    UMI_dict = create_barcode_dict(file_UMI)
+    umi_dict = create_umi_dict(file_UMI)
 
     results_folder = os.path.join(exp_dir, 'results')
     if not os.path.exists(results_folder):
@@ -1874,7 +1828,7 @@ def analyze_alignments_genome_global(dir_sample, amplicon_info, min_MAPQ, min_AS
         # We test first if the read is unmapped, otherwise read_AS would be undefined
         if not read.is_unmapped and (read.mapping_quality >= min_MAPQ
                                      and read_AS >= min_AS and not read.is_secondary):
-            UMI_list_genome.append(UMI_dict[read.query_name][0])
+            UMI_list_genome.append(umi_dict[read.query_name][0])
             names_list_genome.append(read.query_name)
 
     names_list_target_only = []
@@ -1899,7 +1853,7 @@ def analyze_alignments_genome_global(dir_sample, amplicon_info, min_MAPQ, min_AS
 
     for read in bam_in_target:
         if read.mapping_quality >= min_MAPQ and not read.is_unmapped and not read.is_secondary:
-            UMI_list_target_only.append(UMI_dict[read.query_name][0])
+            UMI_list_target_only.append(umi_dict[read.query_name][0])
             names_list_target_only.append(read.query_name)
 
     genomewide_total_reads = len(set(names_list_genome))
@@ -1934,7 +1888,6 @@ def samtools_count_primary_mapped(bam_file):
 # Function to summarize counts into all amplicons
 ################################################################################
 def summarize_results(results):
-
     total_reads_list = [k for k in results.keys() if str(k).endswith('_total_reads')]
     total_reads_collapsed_list = [k for k in results.keys() if str(k).endswith('_total_reads_collapsed')]
 
@@ -1958,7 +1911,6 @@ def summarize_results(results):
 # We pivot the table using melt for easier visualization with other tools like Tableau
 #######################################################################################
 def melt_results(results_summary_with_experiments):
-
     melt_list = [k for k in results_summary_with_experiments.keys() if
                  str(k).endswith('_total_reads_collapsed_percent')]
 
@@ -1978,7 +1930,6 @@ def melt_results(results_summary_with_experiments):
 #  Function to summarize counts into the genome
 ################################################################################
 def summarize_results_genome(read_count, all_results_genome_global_df, results_summary):
-
     df = pd.concat([read_count, results_summary, all_results_genome_global_df], axis=1)
 
     df['total_reads_aligned'] = (df['total_reads_genome'] + df['total_aligned_amplicon_reads'] +
@@ -2006,7 +1957,6 @@ def summarize_results_genome(read_count, all_results_genome_global_df, results_s
 # We pivot the table using melt for easier visualization with other tools like Tableau
 #######################################################################################
 def melt_results_genome(results_summary_genome):
-
     melt_list = ['percent_reads_aligned_plasmid', 'percent_reads_aligned_amplicon', 'percent_reads_mispriming']
 
     frozen_list = list(results_summary_genome)
@@ -2025,8 +1975,8 @@ def melt_results_genome(results_summary_genome):
 # Fast way to count reads, but only works on unix
 ################################################################################
 def wc_unix(filename):
-    cat_out = subprocess.Popen(('zcat', filename), stdout=subprocess.PIPE)
-    return int(int(subprocess.check_output(["wc", "-l"], stdin=cat_out.stdout).split()[0])/4.)
+    cat_out = subprocess.Popen(('gunzip', '-c', filename), stdout=subprocess.PIPE)
+    return int(int(subprocess.check_output(["wc", "-l"], stdin=cat_out.stdout).split()[0]) / 4.)
 
 
 ################################################################################
@@ -2051,14 +2001,14 @@ def count_reads(dir_sample, amplicon_info):
 #  Function to get the percentages for the alignment of all reads mapped to ALL plasmid, amplicons and genomewide
 ################################################################################
 def get_summary_all_alignments(dir_sample, amplicon_info, read_count, result_plasmid_df,
-               result_reads_in_all_amplicons_df, results_genome_global_df):
+                               result_reads_in_all_amplicons_df, results_genome_global_df):
     N7 = amplicon_info['index_I1']
     N5 = amplicon_info['index_I2']
 
     summary_all_alignments_file = create_filename(dir_sample, N7, N5, 'summary_all_alignments')
 
     summary_all_alignments = pd.concat([read_count, result_plasmid_df,
-               result_reads_in_all_amplicons_df, results_genome_global_df], axis=1)
+                                        result_reads_in_all_amplicons_df, results_genome_global_df], axis=1)
 
     total_reads_list = [k for k in summary_all_alignments.keys() if str(k).endswith('_total_reads')]
 
@@ -2070,8 +2020,9 @@ def get_summary_all_alignments(dir_sample, amplicon_info, read_count, result_pla
 
     summary_all_alignments['percent_aligned'] = 100 * (summary_all_alignments['total_aligned'] /
                                                        summary_all_alignments['read_count'])
-    summary_all_alignments['percent_aligned_all_amplicons'] = 100 * (summary_all_alignments['all_amplicons_total_reads'] /
-                                                        summary_all_alignments['total_aligned'])
+    summary_all_alignments['percent_aligned_all_amplicons'] = 100 * (
+                summary_all_alignments['all_amplicons_total_reads'] /
+                summary_all_alignments['total_aligned'])
     summary_all_alignments.to_excel(summary_all_alignments_file, index=False)
 
     return summary_all_alignments
@@ -2081,9 +2032,8 @@ def get_summary_all_alignments(dir_sample, amplicon_info, read_count, result_pla
 # We pivot the table using melt for easier visualization with other tools like Tableau
 #######################################################################################
 def melt_big_results(big_results):
-
     melt_list1 = [k for k in big_results.keys() if
-                 str(k).endswith('_total_reads_collapsed_percent')]
+                  str(k).endswith('_total_reads_collapsed_percent')]
 
     melt_list2 = ['percent_aligned', 'percent_aligned_all_amplicons']
 
@@ -2105,7 +2055,6 @@ def melt_big_results(big_results):
 # Final summary
 ################################################################################
 def summarize_big_results(big_results_in):
-
     results = big_results_in.copy()
 
     # We have the list of all columns to operate, if not present fill with nan
@@ -2168,8 +2117,8 @@ def summarize_big_results(big_results_in):
 
     # We use eps to prevent errors when dividing by zero. It can happen for samples with zero reads
     eps = np.finfo(float).eps
-    results['AAV/Plasmid Integrations'] = (100*results['AAV/Plasmid Integrations reads_collapsed']/
-                                         (results['total_aligned_junctions_collapsed'] + eps))
+    results['AAV/Plasmid Integrations'] = (100 * results['AAV/Plasmid Integrations reads_collapsed'] /
+                                           (results['total_aligned_junctions_collapsed'] + eps))
 
     results['WT'] = (100 * results['WT reads_collapsed'] / (results['total_aligned_junctions_collapsed'] + eps))
 
@@ -2242,11 +2191,10 @@ def summarize_big_results(big_results_in):
 # We pivot the table using melt for easier visualization with other tools like Tableau
 #######################################################################################
 def melt_summarize_big_results(summarized_big_results):
-
     melt_list1 = ['AAV/Plasmid Integrations', 'WT', 'Small Indels',
                   'Large Deletion', 'Inversion',
                   'WT 1a_1b', '1a_1b indels', 'WT 2a_2b', '2a_2b indels',
-                 '1a_1a', '1b_1b', '2b_2b', '1a_2a', '1a_2b', '2a_1b', '2a_2a', '2b_1b']
+                  '1a_1a', '1b_1b', '2b_2b', '1a_2a', '1a_2b', '2a_1b', '2a_2a', '2b_1b']
 
     melt_list2 = ['percent_aligned', 'percent_aligned_all_amplicons']
 
