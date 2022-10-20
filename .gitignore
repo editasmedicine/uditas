@@ -1,0 +1,24 @@
+*.pyc
+.idea
+.DS_Store
+*.swp
+
+data/fig2a/all_results
+data/fig2a/mismatched
+data/fig2a/N*
+data/fig2a/reports
+
+data/fig2b/all_results
+data/fig2b/mismatched
+data/fig2b/N*
+data/fig2b/reports
+
+data/fig2c/all_results
+data/fig2c/mismatched
+data/fig2c/N*
+data/fig2c/reports
+
+# DOCKER #
+__pycache__
+.idea
+
