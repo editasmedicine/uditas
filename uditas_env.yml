@@ -8,18 +8,18 @@ channels:
 - bioconda
 dependencies:
 - bzip2
-- pandas
+- pandas=1.3.0
 - openpyxl
 - numpy
 - matplotlib
-- python=3.9
+- python=3.7.8
 - pytest
 - twobitreader
-- biopython
+- biopython=1.71
 - bowtie2=2.4.4
-- htslib
-- pysam
-- samtools
+- htslib=1.13
+- pysam=0.17.0
+- samtools=1.13
 - readline
 - zlib
 - jpeg
@@ -28,8 +28,8 @@ dependencies:
 - bcftools
 - python-dateutil
 - setuptools
-- cutadapt
-- bedtools
+- cutadapt=3.4
+- bedtools=2.30.0
 
 
 
